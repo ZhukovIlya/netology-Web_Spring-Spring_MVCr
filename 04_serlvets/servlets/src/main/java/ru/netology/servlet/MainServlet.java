@@ -1,65 +1,28 @@
 package ru.netology.servlet;
 
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import ru.netology.SpringConfig;
-import ru.netology.controller.PostController;
-import ru.netology.repository.PostRepository;
-import ru.netology.service.PostService;
+import org.apache.catalina.LifecycleException;
+import org.apache.catalina.connector.Connector;
+import org.apache.catalina.startup.Tomcat;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.file.Files;
 
-public class MainServlet extends HttpServlet {
-    private static final String API_POST_ID = "/api/posts/\\d+";
-    private static final String API_POST = "/api/posts";
-    private PostController controller;
+public class MainServlet {
+    public static void main(String[] args) throws LifecycleException, IOException {
+        final var tomcat = new Tomcat();
+        final var baseDir = Files.createTempDirectory("tomcat");
+        baseDir.toFile().deleteOnExit();
+        tomcat.setBaseDir(baseDir.toAbsolutePath().toString());
 
-    @Override
-    public void init() {
-        final var context = new AnnotationConfigApplicationContext(SpringConfig.class);
-        controller = context.getBean(PostController.class);
-    }
+        final var connector = new Connector();
+        connector.setPort(9999);
+        tomcat.setConnector(connector);
 
-    @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException, ServletException {
-        final var path = req.getRequestURI();
-        // primitive routing
-        if (path.equals(API_POST)) {
-            controller.all(resp);
-            return;
-        }
-        if (path.matches(API_POST_ID)) {
-            // easy way
-            final var id = Long.parseLong(path.substring(path.lastIndexOf("/")));
-            controller.getById(id, resp);
-            return;
-        }
-        super.doGet(req, resp);
-    }
+        tomcat.getHost().setAppBase(".");
+        tomcat.addWebapp("", ".");
 
-    @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        final var path = req.getRequestURI();
-        if (path.equals(API_POST)) {
-            controller.save(req.getReader(), resp);
-            return;
-        }
-        super.doPost(req, resp);
-    }
-
-    @Override
-    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        final var path = req.getRequestURI();
-        if (path.matches(API_POST_ID)) {
-            // easy way
-            final var id = Long.parseLong(path.substring(path.lastIndexOf("/")));
-            controller.removeById(id, resp);
-            return;
-        }
-        super.doDelete(req, resp);
+        tomcat.start();
+        tomcat.getServer().await();
     }
 }
 
